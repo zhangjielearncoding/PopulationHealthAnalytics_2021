@@ -1,0 +1,648 @@
+---
+title: "Exporatory Analysis of  Population Healthcare Data"
+author: "Jie Zhang"
+date: "10/26/2021"
+output:
+  ioslides_presentation: default
+  beamer_presentation: default
+  slidy_presentation: default
+
+
+
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r library, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(knitr)
+```
+
+## Introduction
+This study aims to understand population health data in  Accountable Care Organization (ACO), we perform  descriptive analysis of the inpatient stay, member demographics and  identify key drivers of healthcare cost and readmission rate. We conduct studies as follows:
+
+- Read the data, perform exploratory data analysis (data type, summary statistics)
+- Calculate the inpatient stays, examine the ACO members, e.g. count member by features
+- Explore cost vs. member features
+- Reveal cost relationship with member features
+- Calculate readmission rate, identify features with high readmission rate
+
+## Key findings 
+- The average inpatient stay is about 6.7 days, with the maximum stay as 238 days and minimum 0 day
+- The length of stay is highly skewed.
+
+- The average cost per patient is about $6000 with high variation, members with certain features incur high costs, such as discharge facility (type), Age etc
+
+- The readmission rate varies across ethic groups, for example, the female readmission rate is much higher than male.
+
+
+## Exploratory data analytics
+We read the data
+```{r IPClaims, echo = TRUE}
+options(width = 60)
+library(readr)
+IPClaims <- read.csv("IPClaims.csv", header = TRUE)
+IPClaims <- IPClaims %>%  # change payment to numerical
+  mutate(Paid.Amount = parse_number(Paid.Amount))
+dim(IPClaims);names(IPClaims)
+```
+
+## 
+```{r ACORoster, echo = TRUE}
+options(width = 60)
+library(readr)
+ACORoster <- read.csv("ACORoster.csv", header = TRUE)
+dim(ACORoster);names(ACORoster)
+```
+
+
+
+## Data types
+```{r, echo = TRUE}
+sapply(IPClaims, typeof)
+sapply(ACORoster, typeof)
+```
+
+
+
+## Cost 
+```{r, echo = TRUE}
+summary(IPClaims$Paid.Amount)
+```
+
+## 
+```{r, echo = TRUE}
+boxplot(IPClaims$Paid.Amount)
+
+```
+
+## Inpatient stays 
+Inpatient stay is the interval between admission date and discharge date
+```{r, echo = TRUE}
+IPClaims_inpatient <- IPClaims %>%
+  group_by(Member.ID) %>% 
+  mutate(Admission.Date=as.Date(Admission.Date, "%m/%d/%y"),
+         Discharge.Date=as.Date(Discharge.Date, "%m/%d/%y")) %>% 
+  mutate(inpatientstay = as.numeric(difftime(Discharge.Date, Admission.Date, units = "days"))) %>%
+  filter(inpatientstay >= 0)
+summary(IPClaims_inpatient$inpatientstay)
+```
+
+##  
+
+We can see the inpatient stay is highly skewed
+```{r, echo = TRUE}
+boxplot(IPClaims_inpatient$inpatientstay)
+```
+
+## Member count vs. features
+We have total 6198 distinct member IDs. The Members who have the top number of visits are as follows:
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+IPClaims_Member_Count <- IPClaims  %>%
+  count(Member.ID) %>% arrange(desc(n))
+head1 <- head(IPClaims_Member_Count)
+kable(head1, capition = "Member count by ID")
+```
+
+## 
+We have 140 discharge facilities. For example:
+```{r echo = FALSE, results = 'asis'}
+IPClaims_Discharge.facility_Count <- IPClaims  %>%
+  count(Discharge.facility) %>% arrange(desc(n))
+head1 <- head(IPClaims_Discharge.facility_Count)
+kable(head1, capition = "Member count by Discharge facility")
+```
+
+
+
+
+## 
+There are 3 Discharge facility types. 
+```{r echo = FALSE, results = 'asis'}
+IPClaims_Discharge.facility.type_Count <- IPClaims  %>%
+  count(Discharge.facility.type) %>% arrange(desc(n))
+head1<-head(IPClaims_Discharge.facility.type_Count)
+kable(head1, capition = "")
+```
+
+## 
+255 Admission Diagnosis Groups. 
+```{r echo = FALSE, results = 'asis'}
+IPClaims_Admission.Diagnosis.Group_Count <- IPClaims  %>%
+  count(Admission.Diagnosis.Group) %>% arrange(desc(n)) 
+head1<-head(IPClaims_Admission.Diagnosis.Group_Count)
+kable(head1)
+```
+
+
+## Combining Claim Data  with ACO Roster Data
+```{r}
+Claim_Roster<- IPClaims %>% left_join(ACORoster, by = "Member.ID")
+dim(Claim_Roster); names(Claim_Roster)
+```
+
+## 
+46 Primary Care Sites 
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+#Claim_Roster<- IPClaims %>% left_join(ACORoster, by = "Member.ID")
+#dim(Claim_Roster)
+#names(Claim_Roster)
+
+ACORoster_Primary.Care.Site_Count <- Claim_Roster  %>%
+  count(Primary.Care.Site) %>% arrange(desc(n))%>% na.omit()
+head1 <- head(ACORoster_Primary.Care.Site_Count)
+kable(head1)
+```
+
+
+
+## 
+Member count by Sex
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+#Claim_Roster<- IPClaims %>% left_join(ACORoster, by = "Member.ID")
+#dim(Claim_Roster)
+#names(Claim_Roster)
+ACORoster_Sex_Count <- Claim_Roster %>%
+  count(Sex) %>% arrange(desc(n))%>% na.omit()
+#im(ACORoster_Sex_Count)
+head1 <- head(ACORoster_Sex_Count)
+
+kable(head1, capition = "")
+```
+
+
+
+## 
+Member count by Race
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+
+ACORoster_Race_Count <- Claim_Roster  %>%
+  count(Race) %>% arrange(desc(n))%>% na.omit()
+
+
+head1 <- ACORoster_Race_Count
+
+kable(head1, capition = "")
+```
+
+
+## 
+Member count by Disability
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+ACORoster_Disabled_Count <- Claim_Roster  %>%
+  count(Disabled) %>% arrange(desc(n))%>% na.omit()
+
+head1 <- head(ACORoster_Disabled_Count)
+kable(head1, capition = "")
+```
+
+## 
+Totally 33 different Age categories, we list a few 
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+ACORoster_Age_Count <- Claim_Roster  %>%
+  count(Age) %>% arrange(desc(n)) %>% na.omit()
+head1 <- head(ACORoster_Age_Count)
+kable(head1, capition = "")
+```
+
+
+
+## Cost versus member features
+Box plot of all costs
+```{r , echo = FALSE}
+library(ggplot2)
+ggplot(data = IPClaims, aes(y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Payment Boxplot", x="Payment", y="Amount")
+```
+
+
+## 
+Box plot of cost vs. Discharge facility
+```{r , echo = FALSE}
+library(ggplot2)
+ggplot(data = IPClaims, aes(x=Discharge.facility, y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="", x="Discharge.facility", y="Amount")
+```
+
+
+
+
+
+## 
+The mean cost rank by Discharge facility. Examples: 
+```{r echo = FALSE, results = 'asis'}
+library(knitr)
+sum_Discharge.facility_1 <- IPClaims %>%
+  group_by(Discharge.facility) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE), ) %>% arrange(desc(mean))
+head1 <- head(sum_Discharge.facility_1)
+kable(head1, capition = "")
+```
+
+## 
+The total cost rank by Discharge facility 
+```{r echo = FALSE, results = 'asis'}
+sum_Discharge.facility_2 <- IPClaims %>%
+  group_by(Discharge.facility) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost))
+
+head1 <- head(sum_Discharge.facility_2)
+kable(head1, capition = "")
+```
+
+
+## 
+Boxplot: Cost vs.  Discharge facility type
+```{r , echo = FALSE}
+library(ggplot2)
+ggplot(data = IPClaims, aes(x=Discharge.facility.type, y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Payment Boxplot by facility type", x="Payment", y="Amount")
+```
+
+
+## 
+The mean cost rank by Discharge facility type
+```{r echo = FALSE, results = 'asis'}
+sum_Discharge.facility.type_1 <- IPClaims %>%
+  group_by(Discharge.facility.type) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(mean))
+
+head1 <- head(sum_Discharge.facility.type_1)
+kable(head1, capition = "")
+```
+
+## 
+The total cost rank by Discharge facility type
+```{r echo = FALSE, results = 'asis'}
+sum_Discharge.facility.type_2 <- IPClaims %>%
+  group_by(Discharge.facility.type) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost))
+
+head1 <- head(sum_Discharge.facility.type_2)
+kable(head1, capition = "")
+```
+
+
+## 
+The mean cost rank by Admission Diagnosis Group
+```{r echo = FALSE, results = 'asis'}
+sum_Admission.Diagnosis.Group_1 <- IPClaims %>%
+  group_by(Admission.Diagnosis.Group) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(mean))
+
+
+head1 <- head(sum_Admission.Diagnosis.Group_1)
+kable(head1, capition = "")
+```
+
+
+
+## 
+The total cost rank by Admission Diagnosis Group
+```{r echo = FALSE, results = 'asis'}
+sum_Admission.Diagnosis.Group_2 <- IPClaims %>%
+  group_by(Admission.Diagnosis.Group) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost))
+
+head1 <- head(sum_Admission.Diagnosis.Group_2)
+kable(head1, capition = "")
+```
+
+## 
+The mean cost rank by Primary Care Site 
+```{r echo = FALSE, results = 'asis'}
+sum_Primary.Care.Site_1 <- Claim_Roster %>%
+  group_by(Primary.Care.Site ) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(mean)) %>% na.omit()
+head1 <- head(sum_Primary.Care.Site_1)
+kable(head1, capition = "")
+```
+
+## 
+The total cost rank by Primary Care Site 
+```{r echo = FALSE, results = 'asis'}
+sum_Primary.Care.Site_2 <- Claim_Roster %>%
+  group_by(Primary.Care.Site ) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost))  %>% na.omit()
+
+head1 <- head(sum_Primary.Care.Site_2)
+kable(head1, capition = "")
+```
+
+## 
+Cost by Sex
+```{r echo = FALSE, results = 'asis'}
+
+ggplot(data = Claim_Roster, aes(x=Sex, y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Payment Boxplot by Sex", x="Sex", y="Amount")
+```
+
+## 
+The total cost rank by Sex
+```{r echo = FALSE, results = 'asis'}
+sum_Sex_2 <- Claim_Roster %>%
+  group_by(Sex) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost)) %>% na.omit()
+
+head1 <- head(sum_Sex_2)
+kable(head1, capition = "")
+```
+
+## 
+Cost by Race
+```{r echo = FALSE, results = 'asis'}
+ggplot(data = Claim_Roster, aes(x=Race, y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Payment Boxplot by Race", x="Payment", y="Amount")
+
+```
+
+
+## 
+The total cost rank by Race (all races)
+```{r echo = FALSE, results = 'asis'}
+sum_Race_2 <- Claim_Roster %>%
+  group_by(Race) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost)) %>% na.omit()
+
+head1 <- sum_Race_2
+kable(head1, capition = "")
+```
+
+
+
+
+## 
+```{r echo = FALSE, results = 'asis'}
+ggplot(data = Claim_Roster, aes(x=Disabled, y=Paid.Amount)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Payment Boxplot by Disabled or Not", x="Payment", y="Amount")
+```
+
+## 
+The total cost rank by disabled or not 
+```{r echo = FALSE, results = 'asis'}
+sum_disable_2 <- Claim_Roster %>%
+  group_by(Disabled) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost)) %>% na.omit()
+
+
+head1 <- head(sum_disable_2)
+kable(head1, capition = "")
+```
+
+
+
+
+## 
+The mean cost rank by Age
+```{r echo = FALSE, results = 'asis'}
+sum_Age_1 <- Claim_Roster %>%
+  group_by(Age) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(mean)) %>% na.omit()
+
+
+head1 <- head(sum_Age_1)
+kable(head1, capition = "")
+```
+
+
+
+## 
+The total cost rank by Age
+```{r echo = FALSE, results = 'asis'}
+sum_Age_2 <- Claim_Roster %>%
+  group_by(Age) %>%
+  summarize(count = n(), mean=mean(Paid.Amount,na.rm=TRUE),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% arrange(desc(cost)) %>%
+  na.omit()
+
+
+head1 <- head(sum_Age_2)
+kable(head1, capition = "")
+```
+
+
+
+##  Readmission rate
+Identify members had readmission 
+```{r}
+IPClaims_v1 <- IPClaims %>%
+  group_by(Member.ID) %>% 
+  mutate(Admission.Date=as.Date(Admission.Date, "%m/%d/%y"),
+         Discharge.Date=as.Date(Discharge.Date, "%m/%d/%y")) %>%
+  mutate(count_member= n(), Discharge.Date_lead = lead(Discharge.Date)) %>%
+  filter(!is.na(Discharge.Date_lead)) %>%
+  mutate(Discharge.Date_min = min(Discharge.Date_lead)) %>%
+  mutate(readmission = ifelse(Admission.Date >= Discharge.Date_min+30,"Y","N")) 
+
+```
+
+
+
+##  
+Readmission rate at the member level, we find the members with top readmission rate
+```{r}
+library(formattable)
+re_ad_ind <- IPClaims %>%
+  group_by(Member.ID) %>% 
+  mutate(Admission.Date=as.Date(Admission.Date, "%m/%d/%y"),
+         Discharge.Date=as.Date(Discharge.Date, "%m/%d/%y")) %>%
+  mutate(count_member= n(), Discharge.Date_lead = lead(Discharge.Date)) %>%
+  filter(!is.na(Discharge.Date_lead)) %>%
+  mutate(Discharge.Date_min = min(Discharge.Date_lead)) %>%
+  mutate(readmission = ifelse(Admission.Date >= Discharge.Date_min+30,"Y","N")) %>% 
+  summarize(count =count_member, mean=mean(Paid.Amount,na.rm=TRUE), 
+            re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  mutate(re_ad_rate = percent(re_ad_count/count)) 
+
+```
+
+##
+```{r}
+
+re_ad_ind_v1 <- re_ad_ind %>% arrange(desc(re_ad_rate))
+
+kable(head(re_ad_ind_v1))
+
+```
+
+
+##
+Individual total cost vs. Readmission rate
+```{r}
+
+qplot(re_ad_rate,cost, data=re_ad_ind)
+
+```
+
+
+
+##
+Individual mean cost vs. Readmission rate
+```{r}
+qplot(re_ad_rate,mean, data=re_ad_ind)
+```
+
+
+
+##
+Readmission rate  rank by Discharge facility
+```{r}
+re_ad_Discharge.facility  <- IPClaims_v1 %>%
+  group_by(Discharge.facility) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(IPClaims[,c("Member.ID", "Discharge.facility")],
+             by = "Discharge.facility") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>%
+  select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct()
+
+```
+
+
+##
+```{r}
+kable(head(re_ad_Discharge.facility))
+
+```
+
+
+##
+Rank by Discharge facility type
+```{r echo = FALSE}
+re_ad_Discharge.facility.type  <- IPClaims_v1 %>%  group_by(Discharge.facility.type) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(IPClaims[,c("Member.ID", "Discharge.facility.type")], by = "Discharge.facility.type") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct()
+
+kable(re_ad_Discharge.facility.type)
+```
+
+
+##
+
+Rank by Admission Diagnosis Group
+```{r echo = FALSE}
+re_ad_Admission.Diagnosis.Group  <- IPClaims_v1 %>%  group_by(Admission.Diagnosis.Group) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(IPClaims[,c("Member.ID", "Admission.Diagnosis.Group")], by = "Admission.Diagnosis.Group") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct() %>% na.omit()
+
+kable(head(re_ad_Admission.Diagnosis.Group))
+```
+
+
+##
+Rank by Primary Care Site
+```{r echo = FALSE}
+re_ad_Primary.Care.Site  <- IPClaims_v1 %>% left_join(ACORoster, by = "Member.ID")%>%
+  group_by(Primary.Care.Site) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(Claim_Roster[,c("Member.ID", "Primary.Care.Site")], by = "Primary.Care.Site") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct() %>% na.omit()
+
+
+kable(head(re_ad_Primary.Care.Site))
+```
+
+
+##
+By Sex
+```{r echo = FALSE}
+re_ad_Sex  <- IPClaims_v1 %>% left_join(ACORoster, by = "Member.ID")%>%
+  group_by(Sex) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(Claim_Roster[,c("Member.ID", "Sex")], by = "Sex") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct() 
+
+
+kable(re_ad_Sex)
+```
+
+
+##
+By Race
+```{r echo = FALSE}
+re_ad_Race  <- IPClaims_v1 %>% left_join(ACORoster, by = "Member.ID")%>%
+  group_by(Race) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(Claim_Roster[,c("Member.ID", "Race")], by = "Race") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct()
+
+kable(re_ad_Race)
+```
+
+##
+By Disabled or not 
+```{r echo = FALSE}
+re_ad_Disabled  <- IPClaims_v1 %>% left_join(ACORoster, by = "Member.ID")%>%
+  group_by(Disabled) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(Claim_Roster[,c("Member.ID", "Disabled")], by = "Disabled") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct()
+
+
+kable(re_ad_Disabled)
+```
+
+##
+By Age
+```{r echo = FALSE}
+re_ad_Age  <- IPClaims_v1 %>% left_join(ACORoster, by = "Member.ID")%>%
+  group_by(Age) %>% 
+  summarize(mean=mean(Paid.Amount,na.rm=TRUE), re_ad_count=sum(readmission == "Y"),
+            cost=sum(Paid.Amount,na.rm=TRUE)) %>% 
+  inner_join(Claim_Roster[,c("Member.ID", "Age")], by = "Age") %>% 
+  mutate(count_member= n(),re_ad_rate = percent(re_ad_count/count_member)) %>% select(-Member.ID) %>% 
+  arrange(desc(re_ad_rate)) %>% distinct()
+
+kable(head(re_ad_Age))
+
+
+```
+
+
+
+
